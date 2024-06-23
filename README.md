@@ -21,8 +21,9 @@ Welcome to Shadow Messenger, a simple yet secure TCP-based messaging application
 
 1. **Clone the Repository:**
    ```sh
-   git clone https://github.com/yourusername/shadow-messenger.git
-   cd shadow-messenger
+   git clone https://github.com/shadowdrums/Shadow-Messenger-Master.git
+
+   cd Shadow-Messenger-Master
 
 ## Install Dependencies:
 
