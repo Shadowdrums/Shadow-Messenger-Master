@@ -99,8 +99,4 @@ Utilizes the pycryptodome library for encryption and decryption.
 Thank you for using Shadow Messenger! We hope it serves your needs well.
 
 
-### Note:
-- Replace `https://github.com/yourusername/shadow-messenger.git` with the actual URL of your repository if you have one.
-- The filename `Shadow-Messenger-Master.py` should be replaced with the actual filename if it differs.
-
 
