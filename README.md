@@ -71,9 +71,13 @@ main(): Starts the server and the client main loop.
 
 shadow-messenger/
 ├── master.key              # AES key file
+
 ├── ip.txt                  # File to store username and target IP
+
 ├── received_messages.txt   # File to store received messages
+
 ├── Shadow-Messenger-Master.py # Main program file
+
 └── README.md               # This readme file
 
 # Troubleshooting
