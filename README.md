@@ -105,7 +105,8 @@ Utilizes the pycryptodome library for encryption and decryption.
 - Added docs to most functions
 - Added username field to protocol
 - Refactored encryption as it's own class for modularity
-- Other stuff but I'm hungry
+- "DJ Stomp" Other stuff but I'm hungry
+- "Shadowdrums" I need coffee 
 
 Thank you for using Shadow Messenger! We hope it serves your needs well.
 
