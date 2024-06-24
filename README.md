@@ -96,6 +96,12 @@ Special Thanks to DJ Stomp for helping with this project
 Inspired by the need for simple yet secure messaging over the network.
 Utilizes the pycryptodome library for encryption and decryption.
 
+# Changelog
+- Added docs to most functions
+- Added username field to protocol
+- Refactored encryption as it's own class for modularity
+- Other stuff but I'm hungry
+
 Thank you for using Shadow Messenger! We hope it serves your needs well.
 
 
