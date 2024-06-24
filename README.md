@@ -31,7 +31,7 @@ pip install pycryptodome
 
 # Usage
 
-##Running the Server
+## Running the Server
 
 To start the server, simply run the following command:
 
