@@ -13,7 +13,6 @@ from dataclasses import dataclass
 
 # Encryption handler deps
 from Crypto.Cipher import AES
-from Crypto.Random import get_random_bytes
 import base64
 
 # Encryption Handler
@@ -98,7 +97,7 @@ class ProtocolMessage:
         :param username: Username (str)
         :return: ProtocolMessage instance
         """
-        return cls("HELLO", username, "###henlo###")
+        return cls("HELLO", username, "###hello###")
 
     @classmethod
     def keep_alive_message(cls, username):
@@ -216,7 +215,7 @@ def handle_connection(conn: socket.socket, addr, encryption_handler: EncryptionH
                 response = input("Enter your response: ")
                 if response.lower() == 'exit':
                     break
-                response_msg = ProtocolMessage("MESSAGE", message.username, response)
+                response_msg = ProtocolMessage("MESSAGE", "Server", response)
                 conn.sendall(response_msg.to_bytes(encryption_handler))
     except socket.timeout:
         print(f"Connection with {addr[0]}:{addr[1]} timed out.")
@@ -245,15 +244,16 @@ def resolve_ip(target_ip: str):
     Resolve the given IP address.
 
     :param target_ip: Target IP address (str)
-    :return: Resolved IP address (ipaddress.ip_address)
+    :return: Resolved IP address (str)
     :raises: TypeError if the input is not a string
     """
     if not isinstance(target_ip, str):
         raise TypeError("Input for resolve_ip was not a string value!")
     try:
-        return ipaddress.ip_address(socket.gethostbyname(target_ip))
+        resolved_ip = socket.gethostbyname(target_ip)
+        return resolved_ip
     except socket.gaierror:
-        return ipaddress.ip_address(target_ip)
+        raise ValueError(f"Invalid IP address or hostname: {target_ip}")
 
 def user_input_generator():
     """
@@ -265,12 +265,12 @@ def user_input_generator():
         username = input("Enter your username: ")
         target_ip = input("Enter the IP address of the target machine: ")
         try:
-            target_ip = resolve_ip(target_ip)
+            resolved_ip = resolve_ip(target_ip)
             with open(os.path.join(os.getcwd(), 'ip.txt'), 'w') as f:
-                f.write(f"{username}:{target_ip}")
-            yield username, target_ip
-        except ValueError:
-            print("Invalid IP address. Please try again.")
+                f.write(f"{username}:{resolved_ip}")
+            yield username, resolved_ip
+        except ValueError as e:
+            print(e)
 
 def connection_generator():
     """
@@ -291,14 +291,16 @@ def main_loop(encryption_handler: EncryptionHandler):
     """
     conn_gen = connection_generator()
 
+    username, target_ip = next(conn_gen)
     while True:
-        username, target_ip = next(conn_gen)
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((str(target_ip), 13377))
             threading.Thread(target=send_tcp_message, args=(sock, username, encryption_handler)).start()
+            break
         except Exception as e:
             print(f"Failed to connect to {target_ip}: {e}")
+            username, target_ip = next(conn_gen)
 
 def main():
     """
