@@ -70,6 +70,7 @@ main(): Starts the server and the client main loop.
 ## Directory Structure:
 
 shadow-messenger/
+
 ├── master.key              # AES key file
 
 ├── ip.txt                  # File to store username and target IP
