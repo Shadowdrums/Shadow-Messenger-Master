@@ -24,15 +24,18 @@ Welcome to Shadow Messenger, a simple yet secure TCP-based messaging application
    git clone https://github.com/shadowdrums/Shadow-Messenger-Master.git
 
    cd Shadow-Messenger-Master
+   ```
 
 ## Install Dependencies:
 
-pip install pycryptodome
+```py
+pip install -r requirements.txt
+```
 
 # Usage
 
 ## Running the Server
-
+ 
 To start the server, simply run the following command:
 
 python Shadow-Messenger-Master.py
