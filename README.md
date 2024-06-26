@@ -1,5 +1,5 @@
 # Shadow-Messenger-Master
-this is a 256bit AES CFB end to end encrypted messenger over ip
+This is a 256bit AES CFB end to end encrypted messenger over IP
 
 # Shadow Messenger Master
 
@@ -38,7 +38,9 @@ pip install -r requirements.txt
  
 To start the server, simply run the following command:
 
+```sh
 python Shadow-Messenger-Master.py
+```
 
 The server will start listening on port 13377.
 
