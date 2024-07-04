@@ -1,12 +1,13 @@
 from shadowmessenger.protocol import ProtocolMessage
 from shadowmessenger.encryption import EncryptionHandler
-from shadowmessenger.config import MessengerConfig as CONFIG
+from shadowmessenger.config import MessengerConfig
 
 import threading
 import socket
 import time
 import os
 
+CONFIG = MessengerConfig()
 
 def user_input_generator():
     """
