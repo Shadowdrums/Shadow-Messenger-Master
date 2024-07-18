@@ -14,7 +14,7 @@ from random import getrandbits
 KEEP_ALIVE_INTERVAL = 10
 TIMEOUT = 30
 
-stop_event = threading.Event()
+SHARED_KEY_PATH = "shared_key.key"
 
 
 class EncryptionHandler:
@@ -149,16 +149,16 @@ def combine_key_halves(
     return PBKDF2(combined + shared_secret, b"salt", dkLen=32, count=100000)
 
 
-# def save_shared_key(shared_key: bytes):
-#     with open(SHARED_KEY_PATH, "wb") as f:
-#         f.write(shared_key)
+def save_shared_key(shared_key: bytes):
+    with open(SHARED_KEY_PATH, "wb") as f:
+        f.write(shared_key)
 
 
-# def load_shared_key() -> bytes:
-#     if os.path.exists(SHARED_KEY_PATH):
-#         with open(SHARED_KEY_PATH, "rb") as f:
-#             return f.read()
-#     return None
+def load_shared_key() -> bytes:
+    if os.path.exists(SHARED_KEY_PATH):
+        with open(SHARED_KEY_PATH, "rb") as f:
+            return f.read()
+    return None
 
 
 def send_keep_alive(
@@ -249,14 +249,10 @@ def listen_tcp():
     sock.bind(("0.0.0.0", 13377))
     sock.listen()
     print("Listening on port 13377...")
-    while not stop_event.is_set():
-        sock.settimeout(1.0)
-        try:
-            conn, addr = sock.accept()
-            threading.Thread(target=diffie_hellman_key_exchange, args=(conn, addr)).start()
-        except socket.timeout:
-            continue
-    return sock
+    while True:
+        conn, addr = sock.accept()
+        threading.Thread(target=diffie_hellman_key_exchange, args=(conn, addr)).start()
+
 
 def resolve_ip(target_ip: str):
     if not isinstance(target_ip, str):
@@ -353,8 +349,8 @@ def user_input_generator():
             if verify_user(username, password):
                 print(f"User {username} logged in successfully.")
                 encryption_handler = None
-                # if os.path.exists(SHARED_KEY_PATH):
-                #     encryption_handler = EncryptionHandler(load_shared_key())
+                if os.path.exists(SHARED_KEY_PATH):
+                    encryption_handler = EncryptionHandler(load_shared_key())
                 try:
                     user_ips = get_user_ips(username, encryption_handler)
                     if not user_ips:
@@ -380,8 +376,8 @@ def user_input_generator():
                 resolved_ip = resolve_ip(target_ip)
                 print(f"User {username} created successfully.")
                 encryption_handler = None
-                # if os.path.exists(SHARED_KEY_PATH):
-                #     encryption_handler = EncryptionHandler(load_shared_key())
+                if os.path.exists(SHARED_KEY_PATH):
+                    encryption_handler = EncryptionHandler(load_shared_key())
                 insert_user(username, password, resolved_ip, encryption_handler)
                 yield username, resolved_ip
             except ValueError as e:
@@ -411,7 +407,7 @@ def diffie_hellman_key_exchange(conn: socket.socket, addr):
         full_key = combine_key_halves(
             key_half, other_key_half, str(shared_secret).encode()
         )
-        # save_shared_key(full_key)
+        save_shared_key(full_key)
 
         encryption_handler = EncryptionHandler(full_key)
         handle_connection(conn, addr, encryption_handler)
@@ -447,7 +443,7 @@ def main_loop():
             full_key = combine_key_halves(
                 key_half, other_key_half, str(shared_secret).encode()
             )
-            # save_shared_key(full_key)
+            save_shared_key(full_key)
 
             encryption_handler = EncryptionHandler(full_key)
             threading.Thread(
