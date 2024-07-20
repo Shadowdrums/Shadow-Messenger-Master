@@ -9,6 +9,7 @@ def install():
 
 def build():
     """Build the project."""
+    subprocess.run(["poetry", "version", "patch"], check=True)
     subprocess.run(["poetry", "build"], check=True)
     print("Project built.")
 
