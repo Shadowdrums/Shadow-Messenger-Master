@@ -440,7 +440,6 @@ class UserInputHandler(IUserInputHandler):
 #         except Exception as e:
 #             print(f"Error during Diffie-Hellman key exchange: {str(e)}")
 #             conn.close()
-
 class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
     def __init__(self, database_manager: IDatabaseManager, key_length: int = 2048):
         self.database_manager = database_manager
@@ -455,7 +454,7 @@ class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
             client_public_key_bytes = conn.recv(1024)
             client_public_key = ECC.import_key(client_public_key_bytes)
 
-            shared_secret = private_key.pointQ * client_public_key.pointQ
+            shared_secret = private_key.d * client_public_key.pointQ
             shared_secret_bytes = SHA256.new(shared_secret.export_key(format='DER')).digest()
 
             print(f"Shared secret: {shared_secret_bytes.hex()}")
@@ -475,8 +474,6 @@ class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
             print(f"Error during Diffie-Hellman key exchange: {str(e)}")
         finally:
             conn.close()
-
-
 
 
 class ClientConnection(IClientConnection):
@@ -499,7 +496,7 @@ class ClientConnection(IClientConnection):
 
                 sock.sendall(public_key)
 
-                shared_secret = private_key.pointQ * server_public_key.pointQ
+                shared_secret = private_key.d * server_public_key.pointQ
                 shared_secret_bytes = SHA256.new(shared_secret.export_key(format='DER')).digest()
 
                 print(f"Shared secret: {shared_secret_bytes.hex()}")
@@ -521,8 +518,6 @@ class ClientConnection(IClientConnection):
                 username, target_ip = UserInputHandler(self.database_manager, self.ip_resolver).get_user_input()
             finally:
                 sock.close()
-
-
 
 
 def combine_key_halves(
