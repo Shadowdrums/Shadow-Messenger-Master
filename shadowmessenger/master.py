@@ -540,14 +540,17 @@ class Application:
         self.client_connection.connect_and_communicate(username, target_ip)
 
 
-if __name__ == "__main__":
+def main():
     database_manager = DatabaseManager()
     key_storage = FileKeyStorage(SHARED_KEY_PATH)
     ip_resolver = IPResolver()
     connection_handler = ConnectionHandler()
-    key_exchange = DiffieHellmanKeyExchange(key_length=2048)
+    key_exchange = DiffieHellmanKeyExchange(database_manager=database_manager, key_length=2048)
     tcp_listener = TcpListener(connection_handler, key_exchange)
     message_sender = MessageSender()
-    client_connection = ClientConnection(key_storage, ip_resolver, message_sender, database_manager)
+    client_connection = ClientConnection(database_manager=database_manager, ip_resolver=ip_resolver, message_sender=message_sender)
     app = Application(tcp_listener, client_connection)
     app.run()
+
+if __name__ == "__main__":
+    main()
