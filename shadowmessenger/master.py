@@ -2,17 +2,19 @@ import socket
 import threading
 import os
 import time
-from Crypto.Cipher import AES
-from Crypto.Util import number
-from Crypto.Protocol.KDF import PBKDF2
-from Crypto.Random import get_random_bytes
 from dataclasses import dataclass
 import sqlite3
 from hashlib import sha256
 from random import getrandbits
 from typing import Optional, List
 
-from dataclasses import dataclass
+from Crypto.Cipher import AES
+from Crypto.Util import number
+from Crypto.Protocol.KDF import PBKDF2
+from Crypto.Random import get_random_bytes, random
+from Crypto.PublicKey import DSA
+from Crypto.Hash import SHA256
+from Crypto.Protocol.KDF import PBKDF2
 
 from shadowmessenger.interfaces import *
 
@@ -404,23 +406,64 @@ class UserInputHandler(IUserInputHandler):
                 print("Invalid choice. Please select 1 or 2.")
 
 
+# class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
+#     def __init__(self, database_manager: IDatabaseManager, key_length: int = 2048):
+#         self.key_length = key_length
+#         self.database_manager = database_manager
+
+#     def perform_key_exchange(
+#         self, conn: socket.socket, addr, connection_handler: IConnectionHandler
+#     ):
+#         try:
+#             dh = DiffieHellman(key_length=self.key_length)
+#             public_key = dh.generate_public_key()
+#             print(f"Server public key: {public_key}")
+#             conn.sendall(str(public_key).encode("utf-8"))
+#             other_public_key = int(conn.recv(1024).decode("utf-8"))
+#             print(f"Client public key: {other_public_key}")
+#             shared_secret = dh.generate_shared_secret(other_public_key)
+#             print(f"Shared secret: {shared_secret}")
+
+#             key_half = get_random_bytes(16)
+#             conn.sendall(key_half)
+#             other_key_half = conn.recv(16)
+
+#             print(f"Key halves (server): {key_half.hex()} and {other_key_half.hex()}")
+
+#             full_key = combine_key_halves(
+#                 key_half, other_key_half, str(shared_secret).encode()
+#             )
+#             self.database_manager.store_key(addr[0], full_key)
+
+#             encryption_handler = EncryptionHandler(full_key)
+#             connection_handler.handle_connection(conn, addr, encryption_handler)
+#         except Exception as e:
+#             print(f"Error during Diffie-Hellman key exchange: {str(e)}")
+#             conn.close()
+
 class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
     def __init__(self, database_manager: IDatabaseManager, key_length: int = 2048):
-        self.key_length = key_length
         self.database_manager = database_manager
+        self.key_length = key_length
+
+        self.key = DSA.generate(key_length)
 
     def perform_key_exchange(
         self, conn: socket.socket, addr, connection_handler: IConnectionHandler
     ):
         try:
-            dh = DiffieHellman(key_length=self.key_length)
-            public_key = dh.generate_public_key()
-            print(f"Server public key: {public_key}")
-            conn.sendall(str(public_key).encode("utf-8"))
-            other_public_key = int(conn.recv(1024).decode("utf-8"))
-            print(f"Client public key: {other_public_key}")
-            shared_secret = dh.generate_shared_secret(other_public_key)
-            print(f"Shared secret: {shared_secret}")
+            private_key = self.key
+            public_key = private_key.publickey().export_key(format='DER')
+
+            conn.sendall(public_key)
+
+            client_public_key_bytes = conn.recv(1024)
+            client_public_key = DSA.import_key(client_public_key_bytes)
+
+            shared_secret = pow(client_public_key.y, private_key.x, private_key.p)
+            shared_secret_bytes = SHA256.new(str(shared_secret).encode()).digest()
+
+            print(f"Shared secret: {shared_secret_bytes.hex()}")
 
             key_half = get_random_bytes(16)
             conn.sendall(key_half)
@@ -428,9 +471,7 @@ class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
 
             print(f"Key halves (server): {key_half.hex()} and {other_key_half.hex()}")
 
-            full_key = combine_key_halves(
-                key_half, other_key_half, str(shared_secret).encode()
-            )
+            full_key = combine_key_halves(key_half, other_key_half, shared_secret_bytes)
             self.database_manager.store_key(addr[0], full_key)
 
             encryption_handler = EncryptionHandler(full_key)
@@ -438,7 +479,6 @@ class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
         except Exception as e:
             print(f"Error during Diffie-Hellman key exchange: {str(e)}")
             conn.close()
-
 
 class ClientConnection(IClientConnection):
     def __init__(
