@@ -10,11 +10,12 @@ from typing import Optional, List
 
 from Crypto.Cipher import AES
 from Crypto.Util import number
-from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Random import get_random_bytes, random
-from Crypto.PublicKey import DSA
-from Crypto.Hash import SHA256
 from Crypto.Protocol.KDF import PBKDF2
+from Crypto.PublicKey import ECC
+from Crypto.Random import get_random_bytes
+from Crypto.Hash import SHA256
+
 
 from shadowmessenger.interfaces import *
 
@@ -446,22 +447,20 @@ class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
         self.database_manager = database_manager
         self.key_length = key_length
 
-        self.key = DSA.generate(key_length)
-
     def perform_key_exchange(
         self, conn: socket.socket, addr, connection_handler: IConnectionHandler
     ):
         try:
-            private_key = self.key
-            public_key = private_key.publickey().export_key(format='DER')
+            private_key = ECC.generate(curve='P-256')
+            public_key = private_key.public_key().export_key(format='DER')
 
             conn.sendall(public_key)
 
             client_public_key_bytes = conn.recv(1024)
-            client_public_key = DSA.import_key(client_public_key_bytes)
+            client_public_key = ECC.import_key(client_public_key_bytes)
 
-            shared_secret = pow(client_public_key.y, private_key.x, private_key.p)
-            shared_secret_bytes = SHA256.new(str(shared_secret).encode()).digest()
+            shared_secret = private_key.exchange(ECC.ECDH(), client_public_key)
+            shared_secret_bytes = SHA256.new(shared_secret).digest()
 
             print(f"Shared secret: {shared_secret_bytes.hex()}")
 
@@ -490,20 +489,26 @@ class ClientConnection(IClientConnection):
         self.database_manager = database_manager
         self.ip_resolver = ip_resolver
         self.message_sender = message_sender
+        self.key_length = 2048
 
     def connect_and_communicate(self, username: str, target_ip: str):
         while True:
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.connect((self.ip_resolver.resolve_ip(target_ip), 13377))
-                dh = DiffieHellman(key_length=2048)
-                public_key = dh.generate_public_key()
-                print(f"Client public key: {public_key}")
-                sock.sendall(str(public_key).encode("utf-8"))
-                other_public_key = int(sock.recv(1024).decode("utf-8"))
-                print(f"Server public key: {other_public_key}")
-                shared_secret = dh.generate_shared_secret(other_public_key)
-                print(f"Shared secret: {shared_secret}")
+
+                private_key = ECC.generate(curve='P-256')
+                public_key = private_key.public_key().export_key(format='DER')
+
+                server_public_key_bytes = sock.recv(1024)
+                server_public_key = ECC.import_key(server_public_key_bytes)
+
+                sock.sendall(public_key)
+
+                shared_secret = private_key.exchange(ECC.ECDH(), server_public_key)
+                shared_secret_bytes = SHA256.new(shared_secret).digest()
+
+                print(f"Shared secret: {shared_secret_bytes.hex()}")
 
                 key_half = get_random_bytes(16)
                 sock.sendall(key_half)
@@ -513,9 +518,7 @@ class ClientConnection(IClientConnection):
                     f"Key halves (client): {key_half.hex()} and {other_key_half.hex()}"
                 )
 
-                full_key = combine_key_halves(
-                    key_half, other_key_half, str(shared_secret).encode()
-                )
+                full_key = combine_key_halves(key_half, other_key_half, shared_secret_bytes)
                 self.database_manager.store_key(username, full_key)
 
                 encryption_handler = EncryptionHandler(full_key)
@@ -529,6 +532,7 @@ class ClientConnection(IClientConnection):
                 username, target_ip = UserInputHandler(
                     self.database_manager, self.ip_resolver
                 ).get_user_input()
+
 
 
 def combine_key_halves(
