@@ -19,8 +19,6 @@ from shadowmessenger.interfaces import *
 KEEP_ALIVE_INTERVAL = 10
 TIMEOUT = 30
 
-SHARED_KEY_PATH = "shared_key.key"
-
 @dataclass
 class User:
     username: str
@@ -106,20 +104,6 @@ class DiffieHellman(IDiffieHellman):
     def generate_shared_secret(self, other_public_key: int) -> int:
         return pow(int(other_public_key), self.private_key, self.p)
 
-
-class FileKeyStorage(IKeyStorage):
-    def __init__(self, path: str):
-        self.path = path
-
-    def save_key(self, key: bytes):
-        with open(self.path, "wb") as f:
-            f.write(key)
-
-    def load_key(self) -> Optional[bytes]:
-        if os.path.exists(self.path):
-            with open(self.path, "rb") as f:
-                return f.read()
-        return None
 
 
 class MessageSender(IMessageSender):
@@ -246,7 +230,7 @@ class IPResolver(IIPResolver):
 
 
 @dataclass
-class DatabaseManager:
+class DatabaseManager(IDatabaseManager):
     db_path: str = "user_data.db"
     retries: int = 5
     delay: float = 0.5
@@ -361,11 +345,17 @@ class UserInputHandler(IUserInputHandler):
         self,
         database_manager: IDatabaseManager,
         ip_resolver: IIPResolver,
-        key_storage: IKeyStorage,
     ):
         self.database_manager = database_manager
         self.ip_resolver = ip_resolver
-        self.key_storage = key_storage
+        self.encryption_handler = self._initialize_encryption_handler()
+
+    def _initialize_encryption_handler(self) -> EncryptionHandler:
+        key = self.database_manager.get_key("shared_key")
+        if key is None:
+            key = get_random_bytes(32)
+            self.database_manager.store_key("shared_key", key)
+        return EncryptionHandler(key)
 
     def get_user_input(self) -> tuple[str, str]:
         while True:
@@ -375,14 +365,9 @@ class UserInputHandler(IUserInputHandler):
                 password = input("Enter your password: ")
                 if self.database_manager.verify_user(username, password):
                     print(f"User {username} logged in successfully.")
-                    encryption_handler = None
-                    if os.path.exists(SHARED_KEY_PATH):
-                        encryption_handler = EncryptionHandler(
-                            self.key_storage.load_key()
-                        )
                     try:
                         user_ips = self.database_manager.get_user_ips(
-                            username, encryption_handler
+                            username, self.encryption_handler
                         )
                         if not user_ips:
                             raise ValueError("No IPs found for user.")
@@ -408,14 +393,9 @@ class UserInputHandler(IUserInputHandler):
                 try:
                     resolved_ip = self.ip_resolver.resolve_ip(target_ip)
                     print(f"User {username} created successfully.")
-                    encryption_handler = None
-                    if os.path.exists(SHARED_KEY_PATH):
-                        encryption_handler = EncryptionHandler(
-                            self.key_storage.load_key()
-                        )
                     _user = User(username, password, resolved_ip)
                     self.database_manager.insert_user(
-                        _user, encryption_handler
+                        _user, self.encryption_handler
                     )
                     return username, resolved_ip
                 except ValueError as e:
@@ -535,7 +515,7 @@ class Application:
         self.database_manager.setup_database()
         threading.Thread(target=self.tcp_listener.listen_tcp, daemon=True).start()
         user_input_handler = UserInputHandler(
-            self.database_manager, IPResolver(), FileKeyStorage(SHARED_KEY_PATH)
+            self.database_manager, IPResolver()
         )
         username, target_ip = user_input_handler.get_user_input()
         self.client_connection.connect_and_communicate(username, target_ip)
@@ -543,7 +523,6 @@ class Application:
 
 def main():
     database_manager = DatabaseManager()
-    key_storage = FileKeyStorage(SHARED_KEY_PATH)
     ip_resolver = IPResolver()
     connection_handler = ConnectionHandler()
     key_exchange = DiffieHellmanKeyExchange(database_manager=database_manager, key_length=2048)
