@@ -10,7 +10,9 @@ from dataclasses import dataclass
 import sqlite3
 from hashlib import sha256
 from random import getrandbits
-from typing import Optional
+from typing import Optional, List
+
+from dataclasses import dataclass
 
 from shadowmessenger.interfaces import *
 
@@ -19,6 +21,11 @@ TIMEOUT = 30
 
 SHARED_KEY_PATH = "shared_key.key"
 
+@dataclass
+class User:
+    username: str
+    password: str
+    destination_ip: str
 
 class EncryptionHandler(IEncryptionHandler):
     def __init__(self, key: bytes):
@@ -237,93 +244,226 @@ class IPResolver(IIPResolver):
         except socket.gaierror:
             raise ValueError(f"Invalid IP address or hostname: {target_ip}")
 
+@dataclass
+# class DatabaseManager(IDatabaseManager):
+#     db_path: str = "user_data.db"
+#     retries: int = 5
+#     delay: float = 0.5
 
+#     def __post_init__(self):
+#         self.setup_database()
+
+#     def setup_database(self):
+#         with self._get_connection() as conn:
+#             cursor = conn.cursor()
+#             cursor.execute(
+#                 """
+#                 CREATE TABLE IF NOT EXISTS users (
+#                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+#                     username TEXT NOT NULL UNIQUE,
+#                     password TEXT NOT NULL,
+#                     destination_ip TEXT NOT NULL
+#                 )
+#                 """
+#             )
+#             cursor.execute(
+#                 """
+#                 CREATE TABLE IF NOT EXISTS keys (
+#                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+#                     username TEXT NOT NULL UNIQUE,
+#                     key BLOB NOT NULL,
+#                     FOREIGN KEY (username) REFERENCES users (username)
+#                 )
+#                 """
+#             )
+#             conn.commit()
+
+#     def _get_connection(self):
+#         return sqlite3.connect(self.db_path)
+
+#     def _execute_with_retry(self, query: str, params: tuple):
+#         for attempt in range(self.retries):
+#             try:
+#                 with self._get_connection() as conn:
+#                     cursor = conn.cursor()
+#                     cursor.execute(query, params)
+#                     conn.commit()
+#                     return cursor
+#             except sqlite3.OperationalError as e:
+#                 if "database is locked" in str(e):
+#                     time.sleep(self.delay)
+#                 else:
+#                     raise
+#         raise sqlite3.OperationalError("Database is locked after multiple attempts")
+
+#     def hash_password(self, password: str) -> str:
+#         return sha256(password.encode()).hexdigest()
+
+#     def insert_user(self, user: User, encryption_handler: IEncryptionHandler):
+#         hashed_password = self.hash_password(user.password)
+#         encrypted_ip = encryption_handler.encrypt(user.destination_ip).hex()
+#         self._execute_with_retry(
+#             "INSERT INTO users (username, password, destination_ip) VALUES (?, ?, ?)",
+#             (user.username, hashed_password, encrypted_ip),
+#         )
+
+#     def store_key(self, username: str, key: bytes):
+#         self._execute_with_retry(
+#             "INSERT INTO keys (username, key) VALUES (?, ?) ON CONFLICT(username) DO UPDATE SET key=excluded.key",
+#             (username, key),
+#         )
+
+#     def get_key(self, username: str) -> Optional[bytes]:
+#         with self._get_connection() as conn:
+#             cursor = conn.cursor()
+#             cursor.execute("SELECT key FROM keys WHERE username = ?", (username,))
+#             key = cursor.fetchone()
+#             if key:
+#                 return key[0]
+#         return None
+
+#     def get_user(self, username: str) -> Optional[User]:
+#         with self._get_connection() as conn:
+#             cursor = conn.cursor()
+#             cursor.execute(
+#                 "SELECT username, password, destination_ip FROM users WHERE username = ?",
+#                 (username,),
+#             )
+#             user = cursor.fetchone()
+#             if user:
+#                 return User(username=user[0], password=user[1], destination_ip=user[2])
+#         return None
+
+#     def verify_user(self, username: str, password: str) -> bool:
+#         user = self.get_user(username)
+#         if user:
+#             hashed_password = user.password
+#             return hashed_password == self.hash_password(password)
+#         return False
+
+#     def get_user_ips(self, username: str, encryption_handler: IEncryptionHandler) -> list[str]:
+#         with self._get_connection() as conn:
+#             cursor = conn.cursor()
+#             cursor.execute(
+#                 "SELECT destination_ip FROM users WHERE username = ?", (username,)
+#             )
+#             rows = cursor.fetchall()
+#             ips = []
+#             for row in rows:
+#                 encrypted_ip = bytes.fromhex(row[0])
+#                 decrypted_ip = encryption_handler.decrypt(encrypted_ip)
+#                 ips.append(decrypted_ip)
+#             return ips
+@dataclass
 class DatabaseManager:
-    def __init__(self, db_path: str = "user_data.db"):
-        self.db_path = db_path
+    db_path: str = "user_data.db"
+    retries: int = 5
+    delay: float = 0.5
+
+    def __post_init__(self):
+        self.setup_database()
 
     def setup_database(self):
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL UNIQUE,
-                password TEXT NOT NULL,
-                destination_ip TEXT NOT NULL
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL UNIQUE,
+                    password TEXT NOT NULL,
+                    destination_ip TEXT NOT NULL
+                )
+                """
             )
-            """
-        )
-        conn.commit()
-        conn.close()
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS keys (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL UNIQUE,
+                    key BLOB NOT NULL,
+                    FOREIGN KEY (username) REFERENCES users (username)
+                )
+                """
+            )
+            conn.commit()
+
+    def _get_connection(self):
+        return sqlite3.connect(self.db_path)
+
+    def _execute_with_retry(self, query: str, params: tuple):
+        for _ in range(self.retries):
+            try:
+                with self._get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(query, params)
+                    conn.commit()
+                    return cursor
+            except sqlite3.OperationalError as e:
+                if "database is locked" in str(e):
+                    time.sleep(self.delay)
+                else:
+                    raise
+        raise sqlite3.OperationalError("Database is locked after multiple attempts")
 
     def hash_password(self, password: str) -> str:
-        # Using hexdigest for consistent string format
         return sha256(password.encode()).hexdigest()
 
-    def insert_user(
-        self,
-        username: str,
-        password: str,
-        destination_ip: str,
-        encryption_handler: Optional['IEncryptionHandler'] = None,
-    ):
-        hashed_password = self.hash_password(password)
-        encrypted_ip = (
-            encryption_handler.encrypt(destination_ip).hex()
-            if encryption_handler
-            else destination_ip
-        )
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute(
+    def insert_user(self, user: User, encryption_handler: IEncryptionHandler):
+        hashed_password = self.hash_password(user.password)
+        encrypted_ip = encryption_handler.encrypt(user.destination_ip).hex()
+        self._execute_with_retry(
             "INSERT INTO users (username, password, destination_ip) VALUES (?, ?, ?)",
-            (username, hashed_password, encrypted_ip),
+            (user.username, hashed_password, encrypted_ip),
         )
-        conn.commit()
-        conn.close()
 
-    def get_user(self, _username: str) -> Optional[tuple[str, str, str]]:
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT username, password, destination_ip FROM users WHERE username = ?",
-            (_username,),
+    def store_key(self, username: str, key: bytes):
+        self._execute_with_retry(
+            "INSERT INTO keys (username, key) VALUES (?, ?) ON CONFLICT(username) DO UPDATE SET key=excluded.key",
+            (username, key),
         )
-        user = cursor.fetchone()
-        conn.close()
-        
-        if not user:
-            return None
-        
-        return user
+
+    def get_key(self, username: str) -> Optional[bytes]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT key FROM keys WHERE username = ?", (username,))
+            key = cursor.fetchone()
+            if key:
+                return key[0]
+        return None
+
+    def get_user(self, username: str) -> Optional[User]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT username, password, destination_ip FROM users WHERE username = ?",
+                (username,),
+            )
+            user = cursor.fetchone()
+            if user:
+                return User(username=user[0], password=user[1], destination_ip=user[2])
+        return None
 
     def verify_user(self, username: str, password: str) -> bool:
         user = self.get_user(username)
         if user:
-            stored_hashed_password = user[1]
-            input_hashed_password = self.hash_password(password)
-            return stored_hashed_password == input_hashed_password
+            hashed_password = user.password
+            return hashed_password == self.hash_password(password)
         return False
 
-    def get_user_ips(
-        self, username: str, encryption_handler: Optional['IEncryptionHandler']
-    ) -> list[str]:
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT destination_ip FROM users WHERE username = ?", (username,)
-        )
-        rows = cursor.fetchall()
-        conn.close()
-        ips = []
-        for row in rows:
-            encrypted_ip = bytes.fromhex(row[0])
-            decrypted_ip = encryption_handler.decrypt(encrypted_ip)
-            ips.append(decrypted_ip)
-        return ips
-
+    def get_user_ips(self, username: str, encryption_handler: IEncryptionHandler) -> List[str]:
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT destination_ip FROM users WHERE username = ?", (username,)
+            )
+            rows = cursor.fetchall()
+            ips = []
+            for row in rows:
+                encrypted_ip = bytes.fromhex(row[0])
+                decrypted_ip = encryption_handler.decrypt(encrypted_ip)
+                ips.append(decrypted_ip)
+            return ips
 
 class UserInputHandler(IUserInputHandler):
     def __init__(
@@ -393,15 +533,15 @@ class UserInputHandler(IUserInputHandler):
 
 
 class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
-    def __init__(self, key_storage: IKeyStorage, key_length: int = 2048):
+    def __init__(self, database_manager: IDatabaseManager, key_length: int = 2048):
         self.key_length = key_length
-        self.key_storage = key_storage
+        self.database_manager = database_manager
 
     def perform_key_exchange(
         self, conn: socket.socket, addr, connection_handler: IConnectionHandler
     ):
         try:
-            dh = DiffieHellman(key_length=self.key_length)  # AES key length
+            dh = DiffieHellman(key_length=self.key_length)
             public_key = dh.generate_public_key()
             print(f"Server public key: {public_key}")
             conn.sendall(str(public_key).encode("utf-8"))
@@ -410,7 +550,6 @@ class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
             shared_secret = dh.generate_shared_secret(other_public_key)
             print(f"Shared secret: {shared_secret}")
 
-            # Generate and exchange key halves
             key_half = get_random_bytes(16)
             conn.sendall(key_half)
             other_key_half = conn.recv(16)
@@ -420,7 +559,7 @@ class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
             full_key = combine_key_halves(
                 key_half, other_key_half, str(shared_secret).encode()
             )
-            self.key_storage.save_key(full_key)
+            self.database_manager.store_key(addr[0], full_key)
 
             encryption_handler = EncryptionHandler(full_key)
             connection_handler.handle_connection(conn, addr, encryption_handler)
@@ -432,22 +571,20 @@ class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
 class ClientConnection(IClientConnection):
     def __init__(
         self,
-        key_storage: IKeyStorage,
+        database_manager: IDatabaseManager,
         ip_resolver: IIPResolver,
         message_sender: IMessageSender,
-        database_manager: IDatabaseManager
     ):
-        self.key_storage = key_storage
+        self.database_manager = database_manager
         self.ip_resolver = ip_resolver
         self.message_sender = message_sender
-        self.database_manager = database_manager
 
     def connect_and_communicate(self, username: str, target_ip: str):
         while True:
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.connect((self.ip_resolver.resolve_ip(target_ip), 13377))
-                dh = DiffieHellman(key_length=2048)  # AES key length
+                dh = DiffieHellman(key_length=2048)
                 public_key = dh.generate_public_key()
                 print(f"Client public key: {public_key}")
                 sock.sendall(str(public_key).encode("utf-8"))
@@ -456,7 +593,6 @@ class ClientConnection(IClientConnection):
                 shared_secret = dh.generate_shared_secret(other_public_key)
                 print(f"Shared secret: {shared_secret}")
 
-                # Generate and exchange key halves
                 key_half = get_random_bytes(16)
                 sock.sendall(key_half)
                 other_key_half = sock.recv(16)
@@ -468,7 +604,7 @@ class ClientConnection(IClientConnection):
                 full_key = combine_key_halves(
                     key_half, other_key_half, str(shared_secret).encode()
                 )
-                self.key_storage.save_key(full_key)
+                self.database_manager.store_key(username, full_key)
 
                 encryption_handler = EncryptionHandler(full_key)
                 threading.Thread(
@@ -479,7 +615,7 @@ class ClientConnection(IClientConnection):
             except Exception as e:
                 print(f"Failed to connect to {target_ip}: {e}")
                 username, target_ip = UserInputHandler(
-                    self.database_manager, self.ip_resolver, self.key_storage
+                    self.database_manager, self.ip_resolver
                 ).get_user_input()
 
 
@@ -493,17 +629,15 @@ def combine_key_halves(
     return PBKDF2(combined + shared_secret, b"salt", dkLen=32, count=100000)
 
 
-# Main Application Class
 class Application:
     def __init__(
         self,
-        database_manager: IDatabaseManager,
         tcp_listener: ITcpListener,
         client_connection: IClientConnection,
     ):
-        self.database_manager = database_manager
         self.tcp_listener = tcp_listener
         self.client_connection = client_connection
+        self.database_manager = self.client_connection.database_manager
 
     def run(self):
         self.database_manager.setup_database()
@@ -524,5 +658,5 @@ if __name__ == "__main__":
     tcp_listener = TcpListener(connection_handler, key_exchange)
     message_sender = MessageSender()
     client_connection = ClientConnection(key_storage, ip_resolver, message_sender, database_manager)
-    app = Application(database_manager, tcp_listener, client_connection)
+    app = Application(tcp_listener, client_connection)
     app.run()

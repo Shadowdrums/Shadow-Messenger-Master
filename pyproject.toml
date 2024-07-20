@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "shadowmessenger"
-version = "0.1.0"
+version = "0.1.3"
 description = "256bit AES CFB end to end encrypted messenger over ip"
 authors = ["ShadowDrums <122622018+ShadowDrums@users.noreply.github.com>, DJ Stomp <85457381+DJStompZone@users.noreply.github.com>"]
 license = "MIT"
