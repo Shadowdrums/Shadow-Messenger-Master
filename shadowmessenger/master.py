@@ -413,8 +413,9 @@ class UserInputHandler(IUserInputHandler):
                         encryption_handler = EncryptionHandler(
                             self.key_storage.load_key()
                         )
+                    _user = User(username, password, resolved_ip)
                     self.database_manager.insert_user(
-                        username, password, resolved_ip, encryption_handler
+                        _user, encryption_handler
                     )
                     return username, resolved_ip
                 except ValueError as e:
