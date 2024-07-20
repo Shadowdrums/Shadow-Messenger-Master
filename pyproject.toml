@@ -16,7 +16,7 @@ build = "poetry_scripts:build"
 test = "poetry_scripts:test"
 clean = "poetry_scripts:clean"
 refresh = "poetry_scripts:refresh"
-shadowmessenger = "poetry_scripts:run"
+app = "poetry_scripts:run"
 
 [tool.poetry.group.dev.dependencies]
 poetry = "^1.8.3"
