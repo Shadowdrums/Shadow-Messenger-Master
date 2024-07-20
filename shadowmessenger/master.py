@@ -16,7 +16,6 @@ from Crypto.PublicKey import ECC
 from Crypto.Random import get_random_bytes
 from Crypto.Hash import SHA256
 
-
 from shadowmessenger.interfaces import *
 
 KEEP_ALIVE_INTERVAL = 10
@@ -445,11 +444,8 @@ class UserInputHandler(IUserInputHandler):
 class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
     def __init__(self, database_manager: IDatabaseManager, key_length: int = 2048):
         self.database_manager = database_manager
-        self.key_length = key_length
 
-    def perform_key_exchange(
-        self, conn: socket.socket, addr, connection_handler: IConnectionHandler
-    ):
+    def perform_key_exchange(self, conn: socket.socket, addr, connection_handler: IConnectionHandler):
         try:
             private_key = ECC.generate(curve='P-256')
             public_key = private_key.public_key().export_key(format='DER')
@@ -459,8 +455,8 @@ class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
             client_public_key_bytes = conn.recv(1024)
             client_public_key = ECC.import_key(client_public_key_bytes)
 
-            shared_secret = private_key.exchange(ECC.ECDH(), client_public_key)
-            shared_secret_bytes = SHA256.new(shared_secret).digest()
+            shared_secret = private_key.pointQ * client_public_key.pointQ
+            shared_secret_bytes = SHA256.new(shared_secret.export_key(format='DER')).digest()
 
             print(f"Shared secret: {shared_secret_bytes.hex()}")
 
@@ -477,19 +473,17 @@ class DiffieHellmanKeyExchange(IDiffieHellmanKeyExchange):
             connection_handler.handle_connection(conn, addr, encryption_handler)
         except Exception as e:
             print(f"Error during Diffie-Hellman key exchange: {str(e)}")
+        finally:
             conn.close()
 
+
+
+
 class ClientConnection(IClientConnection):
-    def __init__(
-        self,
-        database_manager: IDatabaseManager,
-        ip_resolver: IIPResolver,
-        message_sender: IMessageSender,
-    ):
+    def __init__(self, database_manager: IDatabaseManager, ip_resolver: IIPResolver, message_sender: IMessageSender):
         self.database_manager = database_manager
         self.ip_resolver = ip_resolver
         self.message_sender = message_sender
-        self.key_length = 2048
 
     def connect_and_communicate(self, username: str, target_ip: str):
         while True:
@@ -505,8 +499,8 @@ class ClientConnection(IClientConnection):
 
                 sock.sendall(public_key)
 
-                shared_secret = private_key.exchange(ECC.ECDH(), server_public_key)
-                shared_secret_bytes = SHA256.new(shared_secret).digest()
+                shared_secret = private_key.pointQ * server_public_key.pointQ
+                shared_secret_bytes = SHA256.new(shared_secret.export_key(format='DER')).digest()
 
                 print(f"Shared secret: {shared_secret_bytes.hex()}")
 
@@ -514,24 +508,20 @@ class ClientConnection(IClientConnection):
                 sock.sendall(key_half)
                 other_key_half = sock.recv(16)
 
-                print(
-                    f"Key halves (client): {key_half.hex()} and {other_key_half.hex()}"
-                )
+                print(f"Key halves (client): {key_half.hex()} and {other_key_half.hex()}")
 
                 full_key = combine_key_halves(key_half, other_key_half, shared_secret_bytes)
                 self.database_manager.store_key(username, full_key)
 
                 encryption_handler = EncryptionHandler(full_key)
-                threading.Thread(
-                    target=self.message_sender.send_tcp_message,
-                    args=(sock, username, encryption_handler),
-                ).start()
+                threading.Thread(target=self.message_sender.send_tcp_message, args=(sock, username, encryption_handler)).start()
                 break
             except Exception as e:
                 print(f"Failed to connect to {target_ip}: {e}")
-                username, target_ip = UserInputHandler(
-                    self.database_manager, self.ip_resolver
-                ).get_user_input()
+                username, target_ip = UserInputHandler(self.database_manager, self.ip_resolver).get_user_input()
+            finally:
+                sock.close()
+
 
 
 
