@@ -238,7 +238,7 @@ class IPResolver(IIPResolver):
             raise ValueError(f"Invalid IP address or hostname: {target_ip}")
 
 
-class DatabaseManager(IDatabaseManager):
+class DatabaseManager:
     def __init__(self, db_path: str = "user_data.db"):
         self.db_path = db_path
 
@@ -259,14 +259,15 @@ class DatabaseManager(IDatabaseManager):
         conn.close()
 
     def hash_password(self, password: str) -> str:
-        return sha256(password.encode()).digest()
+        # Using hexdigest for consistent string format
+        return sha256(password.encode()).hexdigest()
 
     def insert_user(
         self,
-        username,
-        password,
-        destination_ip,
-        encryption_handler: Optional[IEncryptionHandler],
+        username: str,
+        password: str,
+        destination_ip: str,
+        encryption_handler: Optional['IEncryptionHandler'] = None,
     ):
         hashed_password = self.hash_password(password)
         encrypted_ip = (
@@ -283,26 +284,31 @@ class DatabaseManager(IDatabaseManager):
         conn.commit()
         conn.close()
 
-    def get_user(self, username) -> Optional[tuple[str, str, str]]:
+    def get_user(self, _username: str) -> Optional[tuple[str, str, str]]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute(
             "SELECT username, password, destination_ip FROM users WHERE username = ?",
-            (username,),
+            (_username,),
         )
         user = cursor.fetchone()
         conn.close()
+        
+        if not user:
+            return None
+        
         return user
 
-    def verify_user(self, username, password) -> bool:
+    def verify_user(self, username: str, password: str) -> bool:
         user = self.get_user(username)
         if user:
-            hashed_password = user[1]
-            return hashed_password == self.hash_password(password)
+            stored_hashed_password = user[1]
+            input_hashed_password = self.hash_password(password)
+            return stored_hashed_password == input_hashed_password
         return False
 
     def get_user_ips(
-        self, username, encryption_handler: Optional[IEncryptionHandler]
+        self, username: str, encryption_handler: Optional['IEncryptionHandler']
     ) -> list[str]:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -429,10 +435,12 @@ class ClientConnection(IClientConnection):
         key_storage: IKeyStorage,
         ip_resolver: IIPResolver,
         message_sender: IMessageSender,
+        database_manager: IDatabaseManager
     ):
         self.key_storage = key_storage
         self.ip_resolver = ip_resolver
         self.message_sender = message_sender
+        self.database_manager = database_manager
 
     def connect_and_communicate(self, username: str, target_ip: str):
         while True:
@@ -515,6 +523,6 @@ if __name__ == "__main__":
     key_exchange = DiffieHellmanKeyExchange(key_length=2048, key_storage=key_storage)
     tcp_listener = TcpListener(connection_handler, key_exchange)
     message_sender = MessageSender()
-    client_connection = ClientConnection(key_storage, ip_resolver, message_sender)
+    client_connection = ClientConnection(key_storage, ip_resolver, message_sender, database_manager)
     app = Application(database_manager, tcp_listener, client_connection)
     app.run()

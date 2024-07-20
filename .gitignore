@@ -61,3 +61,6 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.db
+/.vs/tasks.vs.json
+*.sqlite
+/.vs
