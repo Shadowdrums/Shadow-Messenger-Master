@@ -38,6 +38,7 @@ def refresh():
 
 def run():
     """Install dependencies and run the application."""
+    banner()
     install()
     run_main()
 
@@ -49,7 +50,6 @@ def banner():
         pass
 
 if __name__ == "__main__":
-    banner()
     import sys
     script_name = sys.argv[1] if len(sys.argv) > 1 else None
     if script_name == "install":
