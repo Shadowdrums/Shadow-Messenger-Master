@@ -39,37 +39,21 @@ cd Shadow-Messenger-Master
 
 ### Usage
 
-## Running the Server
-
-To start the server, execute the application.py script:
-```sh
-python application.py
-```
-
-The server will start listening on port 21337 for incoming connections.
-
-### User Registration
-
-- 1. Run the application:
 ```sh
 python -m shadowmsg
+# Follow prompts for registration or login
+# Once logged in, you can start sending and receiving secure messages
 ```
-- 2. Select "1. Login" when prompted.
-- 3. Enter your username.
-- 4. Enter your password.
-- 5. Select the IP address for communication or add a new one if needed.
+- 1. Select "1./2. Login"/"register" when prompted.
+- 2. Enter your username.
+- 3. Enter your password.
+- 4. Select the IP address for communication or add a new one if needed.
+
+The server will start listening on port 21337 for incoming connections.
 
 ### Secure Communication
 
 After logging in, you can send and receive messages securely. The application will handle the Diffie-Hellman key exchange and AES encryption automatically.
-
-## Example Usage
-
-```sh
-python application.py
-# Follow prompts for registration or login
-# Once logged in, you can start sending and receiving secure messages
-```
 
 ### How It Works
 
