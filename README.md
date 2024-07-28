@@ -55,13 +55,142 @@ The server will start listening on port 21337 for incoming connections.
 
 After logging in, you can send and receive messages securely. The application will handle the Diffie-Hellman key exchange and AES encryption automatically.
 
-### How It Works
+# How It Works
 
-AES CFB Encryption
-The Advanced Encryption Standard (AES) in Cipher Feedback (CFB) mode is used for encrypting and decrypting messages. CFB mode is suitable for stream encryption and allows encryption of variable-length data.
+### Diffie-Hellman Key Exchange with HKDF
 
-Diffie-Hellman Key Exchange with HKDF
-Diffie-Hellman (DH) key exchange is used to securely generate a shared secret between two parties. This shared secret is then used to derive a strong encryption key using HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
+Diffie-Hellman (DH) Key Exchange is a method used to securely exchange cryptographic keys over a public channel. Here’s how it works in the context of Shadow Messenger:
+```
+Parameter Generation: Both clients agree on a large prime number 
+𝑝
+p and a base 
+𝑔
+g (a generator). These parameters can be public.
+
+Private Key Generation: Each client generates a private key 
+𝑎
+a and 
+𝑏
+b, which are large random numbers.
+```
+Public Key Generation: Using the private keys, each client generates their public keys:
+
+Client 1 generates 
+```
+𝐴
+=
+𝑔
+𝑎
+m
+o
+d
+ 
+ 
+𝑝
+A=g 
+a
+ modp
+```
+Client 2 generates 
+```
+𝐵
+=
+𝑔
+𝑏
+m
+o
+d
+ 
+ 
+𝑝
+B=g 
+b
+ modp
+Exchange Public Keys: The clients exchange their public keys 
+𝐴
+A and 
+𝐵
+B.
+```
+Shared Secret Calculation: Each client uses their private key and the other client’s public key to compute the shared secret:
+
+Client 1 computes 
+```
+𝑆
+=
+𝐵
+𝑎
+m
+o
+d
+
+ 
+𝑝
+S=B 
+a
+ modp
+```
+
+Client 2 computes 
+```
+𝑆
+=
+𝐴
+𝑏
+m
+o
+d
+ 
+ 
+𝑝
+S=A 
+b
+ modp
+```
+
+The computed shared secret 
+```
+𝑆
+S is the same for both clients and is not transmitted over the network, making it secure.
+```
+
+HMAC-based Extract-and-Expand Key Derivation Function (HKDF) is used to derive a strong encryption key from the shared secret. Here’s how HKDF is used:
+
+Extract: The shared secret 
+```
+𝑆
+S is used as input to an HMAC function along with an optional salt to produce a pseudorandom key (PRK).
+```
+Expand: The PRK is then expanded into several additional pseudorandom keys by applying the HMAC function again along with some contextual information.
+
+The final output is a cryptographically strong key derived from the shared secret.
+
+
+### AES CFB Mode
+
+Advanced Encryption Standard (AES) in Cipher Feedback (CFB) mode is used to encrypt and decrypt messages. Here’s why AES CFB mode is suitable for this application:
+
+Stream Cipher: CFB mode turns a block cipher (AES) into a stream cipher, which means it can encrypt data of any length, making it flexible for varying message sizes.
+
+No Padding: Unlike some other modes of operation, CFB mode does not require padding the plaintext to a multiple of the block size.
+
+Error Propagation: Errors in one block affect only a few subsequent blocks, not the entire message.
+
+### How AES CFB Mode Works:
+
+The encryption process uses an initialization vector (IV) along with the secret key. The IV ensures that the same plaintext encrypted multiple times will produce different ciphertexts.
+The plaintext is XORed with the output of the AES encryption of the IV (or previous ciphertext block), resulting in the ciphertext.
+For decryption, the ciphertext is XORed with the output of the AES encryption of the IV (or previous ciphertext block) to retrieve the plaintext.
+Why This Encryption Practice is Good for P2P Over IPv4
+Security: The combination of Diffie-Hellman key exchange and AES encryption provides strong security guarantees. The DH key exchange ensures that the key is securely exchanged even over an insecure channel. AES in CFB mode provides confidentiality and data integrity.
+
+Flexibility: CFB mode does not require padding and can handle messages of arbitrary length, making it suitable for P2P communication where message sizes can vary.
+
+Efficiency: Both DH key exchange and AES encryption are efficient and can be performed quickly, ensuring real-time communication is feasible.
+
+Simplicity: The protocol is straightforward to implement and understand, reducing the risk of security vulnerabilities due to implementation errors.
+
+Compatibility: IPv4 is the most widely used version of the Internet Protocol. This setup works seamlessly over IPv4, making it widely applicable and easy to deploy without requiring specialized infrastructure.
 
 ### API Documentation
 
