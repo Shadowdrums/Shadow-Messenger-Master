@@ -44,7 +44,7 @@ python -m shadowmsg
 # Follow prompts for registration or login
 # Once logged in, you can start sending and receiving secure messages
 ```
-- 1. Select "1./2. Login"/"register" when prompted.
+- 1. Select 1. or 2. "Login" or "register" when prompted.
 - 2. Enter your username.
 - 3. Enter your password.
 - 4. Select the IP address for communication or add a new one if needed.
