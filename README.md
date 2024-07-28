@@ -109,8 +109,8 @@ get_contacts(self, username: str) -> List[tuple[str, str]]: Retrieves the contac
 
 ### EncryptionHandler
 
-##Class: EncryptionHandler
-#Methods:
+## Class: EncryptionHandler
+# Methods:
 ```py
 encrypt(self, message: str) -> bytes: Encrypts a message using AES encryption.
 decrypt(self, encrypted_message: bytes) -> str: Decrypts an encrypted message using AES decryption.
