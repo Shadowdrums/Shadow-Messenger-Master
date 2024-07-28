@@ -1,4 +1,6 @@
-# shadowmsg
+# Shadow-Messenger-Master
+
+256bit AES CFB encrypted P2P messenger over IP using Diffie Hellman key exchange with HKDF
 
 ## Usage
 1.	Run the Application: Execute the main function in application.py to start the server and client interaction.
