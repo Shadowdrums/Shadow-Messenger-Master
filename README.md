@@ -49,6 +49,33 @@ python -m shadowmsg
 - 3. Enter your password.
 - 4. Select the IP address for communication or add a new one if needed.
 
+## Running with Poetry
+
+Install dependencies and set up the environment using poetry:
+
+Copy code
+```sh
+poetry add pycryptodome
+
+poetry add homegrowndhe
+
+poetry add appdirs
+
+poetry install
+
+poetry build
+
+```
+## Run the application using poetry:
+
+### Copy code
+```sh
+poetry run python -m shadowmsg
+# Follow prompts for registration or login
+# Once logged in, you can start sending and receiving secure messages
+```
+Follow the same steps as above for login or registration and selecting an IP address.
+
 The server will start listening on port 21337 for incoming connections.
 
 ### Secure Communication
