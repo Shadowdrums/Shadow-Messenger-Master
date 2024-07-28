@@ -33,8 +33,8 @@ pip install -r requirements.txt
 Clone the repository to your local machine:
 
 ```sh
-git clone https://github.com/your-repo/shadow-messenger.git
-cd shadow-messenger
+https://github.com/Shadowdrums/Shadow-Messenger-Master.git
+cd Shadow-Messenger-Master
 ```
 
 ### Usage
@@ -52,7 +52,7 @@ The server will start listening on port 21337 for incoming connections.
 
 - 1. Run the application:
 ```sh
-python application.py
+python -m shadowmsg
 ```
 - 2. Select "1. Login" when prompted.
 - 3. Enter your username.
