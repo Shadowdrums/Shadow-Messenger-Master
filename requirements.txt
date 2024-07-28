@@ -1,2 +1,3 @@
-pycryptodome==3.20.0
-homegrowndhe==0.2.2
+pycryptodome~=3.20.0
+homegrowndhe~=0.2.2
+appdirs~=1.4.4
