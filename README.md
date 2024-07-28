@@ -80,9 +80,10 @@ The server will start listening on port 21337 for incoming connections.
 
 ### Note
 
-users `user_data.db` will be palced and used from 
-`C:\Users\<user_name>\AppData\Local\shadowteam\shadowmsg`
-
+users `user_data.db` will be palced and used from:
+```sh
+C:\Users\<user_name>\AppData\Local\shadowteam\shadowmsg
+```
 ### Secure Communication
 
 After logging in, you can send and receive messages securely. The application will handle the Diffie-Hellman key exchange and AES encryption automatically.
